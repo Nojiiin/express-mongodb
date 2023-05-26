@@ -1,6 +1,6 @@
 {
   "name": "@nojin/express-mongodb",
-  "version": "1.0.4",
+  "version": "2.0.0",
   "description": "tools to work with MongoDB database in an express.js or node.js application",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
