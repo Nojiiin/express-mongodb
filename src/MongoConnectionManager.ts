@@ -1,7 +1,7 @@
 import { MongoClient, MongoClientOptions } from "mongodb"
 import { retry } from "./retry"
 
-interface MongoConnectionManagerOptions extends MongoClientOptions {
+interface MongoConnectionManagerOptions {
     retryAttempts?: number,
     retryInterval?: number,
 }
@@ -80,7 +80,7 @@ export class MongoConnectionManager {
 
         const tryConnect: () => Promise<void> = () => new Promise<void>((resolve, reject) => {
             try {
-                MongoClient.connect(this.connectionString, this.mongodbOptions || {})
+                MongoClient.connect(this.connectionString, this.mongodbOptions)
                     .then((client) => {
                         this.client = client;
                         this.client.on('serverClosed', () => {

@@ -20,7 +20,10 @@ describe('MongoConnectionManager', () => {
 
     beforeEach(() => {
         mockClient = mClient as unknown as MongoClient;
-        mongoConnectionManager = new MongoConnectionManager('mongodb://localhost:27017', {}, { retryAttempts: 3, retryInterval: 10 });
+        mongoConnectionManager = new MongoConnectionManager(
+            'mongodb://localhost:27017', 
+            undefined,
+             { retryAttempts: 3, retryInterval: 10 });
         (MongoClient.connect as jest.Mock).mockImplementation(() => Promise.resolve(mClient));
     });
 
