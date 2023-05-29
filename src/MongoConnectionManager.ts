@@ -1,7 +1,7 @@
 import { MongoClient, MongoClientOptions } from "mongodb"
 import { retry } from "./retry"
 
-interface MongoConnectionManagerOptions {
+export interface MongoConnectionManagerOptions {
     retryAttempts?: number,
     retryInterval?: number,
 }
