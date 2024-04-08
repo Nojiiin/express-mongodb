@@ -25,6 +25,9 @@ export class MongoConnectionManager {
     private retryInterval: number;
 
     constructor(private connectionString: string, private mongodbOptions?: MongoClientOptions, private options?: MongoConnectionManagerOptions) {
+        if (!connectionString) {
+            throw new Error("connectionString is required")
+        }
         this.retryAttempts = options?.retryAttempts || 5;
         this.retryInterval = options?.retryInterval || 1000;
     }
@@ -97,7 +100,11 @@ export class MongoConnectionManager {
                         reject(err)
                     });
             }
-            catch (err) {
+            catch (err : any) {
+                // check if there is stack and if in stack there is "at new ConnectionString" which indicates an error in connection string
+                if (err.stack && err.stack.includes("at new ConnectionString")) {
+                    reject(new Error("Invalid connection string"))
+                }
                 reject(err)
             }
         });
