@@ -37,7 +37,7 @@ export class MongoConnectionManager {
         this.onConnectionChangedCallbacks = [...this.onConnectionChangedCallbacks, callback]
     }
 
-    async getConnection(): Promise<MongoClient> {
+    async getClient(): Promise<MongoClient> {
         if (this.connectionPromise === null) {
             this.connectionPromise = this.createConnectionPromise();
         }
