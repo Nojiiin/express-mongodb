@@ -1,5 +1,6 @@
 import { MongoClient, MongoClientOptions } from "mongodb"
 import { retry } from "./retry"
+import { Logger } from "winston"
 
 export interface MongoConnectionManagerOptions {
     retryAttempts?: number,
@@ -7,12 +8,12 @@ export interface MongoConnectionManagerOptions {
 }
 
 export class AggregateError extends Error {
-    errors: Error[];
+    errors: Error[]
 
     constructor(errors: Error[], message: string) {
-        super(message);
-        this.errors = errors;
-        Object.setPrototypeOf(this, AggregateError.prototype);  // Ensures the instance is of type AggregateError
+        super(message)
+        this.errors = errors
+        Object.setPrototypeOf(this, AggregateError.prototype)  // Ensures the instance is of type AggregateError
     }
 }
 
@@ -21,15 +22,15 @@ export class MongoConnectionManager {
     private connected: boolean = false
     private onConnectionChangedCallbacks: CallableFunction[] = []
     private connectionPromise: Promise<MongoClient> | null = null
-    private retryAttempts: number;
-    private retryInterval: number;
+    private retryAttempts: number
+    private retryInterval: number
 
-    constructor(private connectionString: string, private mongodbOptions?: MongoClientOptions, private options?: MongoConnectionManagerOptions) {
+    constructor(private connectionString: string, private mongodbOptions?: MongoClientOptions, private options?: MongoConnectionManagerOptions, private logger?: Logger) {
         if (!connectionString) {
             throw new Error("connectionString is required")
         }
-        this.retryAttempts = options?.retryAttempts || 5;
-        this.retryInterval = options?.retryInterval || 1000;
+        this.retryAttempts = options?.retryAttempts || 5
+        this.retryInterval = options?.retryInterval || 1000
     }
 
     isConnnected(): boolean {
@@ -42,7 +43,7 @@ export class MongoConnectionManager {
 
     async getClient(): Promise<MongoClient> {
         if (this.connectionPromise === null) {
-            this.connectionPromise = this.createConnectionPromise();
+            this.connectionPromise = this.createConnectionPromise()
         }
         return this.connectionPromise
     }
@@ -85,7 +86,7 @@ export class MongoConnectionManager {
             try {
                 MongoClient.connect(this.connectionString, this.mongodbOptions)
                     .then((client) => {
-                        this.client = client;
+                        this.client = client
                         this.client.on('serverClosed', () => {
                             this.onDisconnect()
                         })
@@ -95,19 +96,20 @@ export class MongoConnectionManager {
                         this.client.on('close', () => {
                             this.onDisconnect()
                         })
-                        resolve();
+                        resolve()
                     }).catch((err) => {
                         reject(err)
-                    });
+                    })
             }
-            catch (err : any) {
+            catch (err: any) {
+                this.logger?.error(err)
                 // check if there is stack and if in stack there is "at new ConnectionString" which indicates an error in connection string
                 if (err.stack && err.stack.includes("at new ConnectionString")) {
                     reject(new Error("Invalid connection string"))
                 }
                 reject(err)
             }
-        });
+        })
 
         return new Promise<MongoClient>((resolve, reject) => {
             this.connected = false
@@ -117,10 +119,10 @@ export class MongoConnectionManager {
                     throw new Error("Client is null. This should never happen.")
                 }
                 this.onConnect()
-                resolve(this.client);
+                resolve(this.client)
             }).catch((err) => {
-                reject(err);
-            });
+                reject(err)
+            })
         })
     }
 }
