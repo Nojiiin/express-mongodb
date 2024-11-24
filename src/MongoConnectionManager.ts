@@ -27,10 +27,11 @@ export class MongoConnectionManager {
 
     constructor(private connectionString: string, private mongodbOptions?: MongoClientOptions, private options?: MongoConnectionManagerOptions, private logger?: Logger) {
         if (!connectionString) {
-            throw new Error("connectionString is required")
+            throw new Error("❌ Connection string is required")
         }
         this.retryAttempts = options?.retryAttempts || 5
         this.retryInterval = options?.retryInterval || 1000
+        this.logger?.info(`💫 MongoConnectionManager created with retryAttempts=${this.retryAttempts}, retryInterval=${this.retryInterval}`)
     }
 
     isConnnected(): boolean {
@@ -43,6 +44,7 @@ export class MongoConnectionManager {
 
     async getClient(): Promise<MongoClient> {
         if (this.connectionPromise === null) {
+            this.logger?.info("💫 Creating new connection promise")
             this.connectionPromise = this.createConnectionPromise()
         }
         return this.connectionPromise
@@ -50,13 +52,18 @@ export class MongoConnectionManager {
 
     private onConnect() {
         this.connected = true
-        let errors: any[] = []
+        this.logger?.info("✅ Connected to MongoDB")
+        let errors: Error[] = []
         this.onConnectionChangedCallbacks.forEach(callback => {
             try {
                 callback()
             }
             catch (err) {
-                errors = [...errors, err]
+                if (err instanceof Error) {
+                    errors.push(err)
+                } else {
+                    this.logger?.error("❌ Unkown exception in onConnectionChanged callback")
+                }
             }
         })
         if (errors.length > 0) {
@@ -65,14 +72,19 @@ export class MongoConnectionManager {
     }
 
     private onDisconnect() {
-        this.connected = true
-        let errors: any[] = []
+        this.connected = false
+        this.logger?.warn("❌ Disconnected from MongoDB")
+        let errors: Error[] = []
         this.onConnectionChangedCallbacks.forEach(callback => {
             try {
                 callback()
             }
             catch (err) {
-                errors = [...errors, err]
+                if (err instanceof Error) {
+                    errors.push(err)
+                } else {
+                    this.logger?.error("❌ Unkown exception in onConnectionChanged callback")
+                }
             }
         })
         if (errors.length > 0) {
@@ -88,26 +100,40 @@ export class MongoConnectionManager {
                     .then((client) => {
                         this.client = client
                         this.client.on('serverClosed', () => {
+                            this.logger?.warn("❌ MongoDB server closed")
                             this.onDisconnect()
                         })
-                        this.client.on('error', () => {
+                        this.client.on('error', (err) => {
+                            this.logger?.error(`💥 MongoDB client error: ${err.message}`)
                             this.onDisconnect()
                         })
                         this.client.on('close', () => {
+                            this.logger?.warn("❌ MongoDB client closed")
                             this.onDisconnect()
                         })
                         resolve()
                     }).catch((err) => {
+                        if (err instanceof Error) {
+                            this.logger?.error(`💥 Failed to connect to MongoDB: ${err.message}`)
+                        } else {
+                            this.logger?.error("💥 Failed to connect to MongoDB: Unknown error")
+                        }
                         reject(err)
                     })
             }
-            catch (err: any) {
-                this.logger?.error(err)
-                // check if there is stack and if in stack there is "at new ConnectionString" which indicates an error in connection string
-                if (err.stack && err.stack.includes("at new ConnectionString")) {
-                    reject(new Error("Invalid connection string"))
+            catch (err) {
+                if (err instanceof Error) {
+                    this.logger?.error(`💥 Unexpected error: ${err.message}`)
+                    // check if there is stack and if in stack there is "at new ConnectionString" which indicates an error in connection string
+                    if (err.stack && err.stack.includes("at new ConnectionString")) {
+                        reject(new Error("❌ Invalid connection string"))
+                    } else {
+                        reject(err)
+                    }
+                } else {
+                    this.logger?.error("💥 Unexpected error: Unknown error")
+                    reject(new Error("Unexpected error"))
                 }
-                reject(err)
             }
         })
 
@@ -116,11 +142,18 @@ export class MongoConnectionManager {
 
             retry(tryConnect, this.retryAttempts, this.retryInterval).then(() => {
                 if (this.client === null) {
-                    throw new Error("Client is null. This should never happen.")
+                    const errorMessage = "❌ Client is null. This should never happen."
+                    this.logger?.error(errorMessage)
+                    throw new Error(errorMessage)
                 }
                 this.onConnect()
                 resolve(this.client)
             }).catch((err) => {
+                if (err instanceof Error) {
+                    this.logger?.error(`💥 All retry attempts failed: ${err.message}`)
+                } else {
+                    this.logger?.error("💥 All retry attempts failed: Unknown error")
+                }
                 reject(err)
             })
         })
